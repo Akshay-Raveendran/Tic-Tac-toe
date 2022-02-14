@@ -1,239 +1,333 @@
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <array>
 
-#include<bits/stdc++.h> 
+using std::cout;
+using std::cin;
+using std::endl;
 
-using namespace std;
+#define WIN 1000
+#define	DRAW 0
+#define LOSS -1000
 
-typedef vector<bool> VB;
-typedef vector<int> VI;
-#define IFOR(i) for (int i = 1; i <= 9; i++)
-#define SFOR(i) for (int i = 0; i < 3; i++)
-#define isEmpty(i, filledSpots) if (filledSpots[i] == false)
-#define isBlank(i,j) if (arr[i][j] == ' ')
-#define isValidMoves(place) place > 9 || place < 1
-#define DFOR(i, j) for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+#define AI_MARKER 'O'
+#define PLAYER_MARKER 'X'
+#define EMPTY_SPACE '-'
 
-// Placing the values on BOARD
-void placeFlag (char arr[3][3], int place, char move) {
-	switch(place) {
-		case 1: arr[0][0] = move; break;
-		case 2: arr[0][1] = move; break;
-		case 3: arr[0][2] = move; break;
-		case 4: arr[1][0] = move; break;
-		case 5: arr[1][1] = move; break;
-		case 6: arr[1][2] = move; break;
-		case 7: arr[2][0] = move; break;
-		case 8: arr[2][1] = move; break;
-		case 9: arr[2][2] = move; break;   
-	}
+#define START_DEPTH 0
+
+// Print game state
+void print_game_state(int state)
+{
+	if (WIN == state) { cout << "WIN" << endl; }
+	else if (DRAW == state) { cout << "DRAW" << endl; }
+	else if (LOSS == state) { cout << "LOSS" << endl; }
 }
 
-// Check if any more moves are left on the board
-bool isMovesLeft(const char arr[3][3]) { 
-	DFOR(i,j) {
-    	isBlank(i,j){ 
-    		return true; 
-    	}
-    }
-    return false; 
-}
+// All possible winning states
+std::vector<std::vector<std::pair<int, int>>> winning_states
+{
+	// Every row
+	{ std::make_pair(0, 0), std::make_pair(0, 1), std::make_pair(0, 2) },
+	{ std::make_pair(1, 0), std::make_pair(1, 1), std::make_pair(1, 2) },
+	{ std::make_pair(2, 0), std::make_pair(2, 1), std::make_pair(2, 2) },
 
-// Random Move Selection based on highest score available.
-int movePicker(const char arr[3][3], const int searchValue, const int weights[10]) {
-	VI validValues;
-	int wins = INT_MIN;
-	IFOR(i) {
-		if (weights[i] == searchValue) {
-			validValues.push_back(i); 
-		}
-	}
+	// Every column
+	{ std::make_pair(0, 0), std::make_pair(1, 0), std::make_pair(2, 0) },
+	{ std::make_pair(0, 1), std::make_pair(1, 1), std::make_pair(2, 1) },
+	{ std::make_pair(0, 2), std::make_pair(1, 2), std::make_pair(2, 2) },
+
+	// Every diagonal
+	{ std::make_pair(0, 0), std::make_pair(1, 1), std::make_pair(2, 2) },
+	{ std::make_pair(2, 0), std::make_pair(1, 1), std::make_pair(0, 2) }
+
+};
+
+// Print the current board state
+void print_board(char board[3][3])
+{
 	cout << endl;
-	srand (time(NULL));
-	int randomIndex = validValues[rand() % validValues.size()] ;
-	return randomIndex;
+	cout << board[0][0] << " | " << board[0][1] << " | " << board[0][2] << endl;
+	cout << "----------" << endl;
+	cout << board[1][0] << " | " << board[1][1] << " | " << board[1][2] << endl;
+	cout << "----------" << endl;
+	cout << board[2][0] << " | " << board[2][1] << " | " << board[2][2] << endl << endl;
 }
 
-void printBoard(const char arr[3][3]) {
-	SFOR(i) {
-		SFOR(j) {
-			cout << arr[i][j] << " ";
-		}
-		cout << endl;
-	}
-}
-
-// Evaluation of current state of the game.
-int evaluate (const char arr[3][3], const char &humanChar, const char &beastChar) {
-	// ROWS WIN SCORE
-	SFOR(i) { 
-        if (arr[i][0] == arr [i][1] && arr[i][1] == arr[i][2]) { 
-            if (arr[i][0] == beastChar) {
-                return +10; 
-            } else if (arr[i][0] == humanChar) {
-            	return -10; 
-            }
-        } 
-    }   
-    //COLS WIN SCORE
-    SFOR(j) {
-        if (arr[0][j] == arr[1][j] && arr[1][j] == arr[2][j]) { 
-            if (arr[0][j] == beastChar) {
-                return +10; 
-            } else if (arr[0][j] == humanChar) {
-                return -10; 
-            }
-        } 
-    } 
-    // RIGHT DIAG WIN SCORE
-    if (arr[0][0] == arr[1][1] && arr[1][1]== arr[2][2]) { 
-        if (arr[0][0] == beastChar) {
-            return +10; 
-        } else if (arr[0][0] == humanChar) {
-            return -10; 
-        }
-    } 
-  	// RIGHT DIAG WIN SCORE
-    if (arr[0][2] == arr [1][1] && arr[1][1] == arr[2][0]) { 
-        if (arr[0][2] == beastChar) {
-            return +10; 
-        } else if (arr[0][2] == humanChar) {
-            return -10; 
-        }
-    } 
-    return 0; 
-}
-
-int minmax (char arr[3][3], const char &humanChar, const char &beastChar, int depth, bool isMax) {
-	int score = evaluate(arr, humanChar, beastChar); 
-    if (score == 10) 
-        return score - depth; 
-    if (score == -10)
-    	return score + depth;
-
-    if (isMovesLeft(arr) == false) 
-        return 0; 
-    
-    if (isMax) { 
-    	//Choosing Best Move for the beast.
-        int best = INT_MIN; 
-        SFOR(i) { 
-            SFOR(j) {  
-                isBlank(i, j) { 
-                    arr[i][j] = beastChar;  
-                    best = max(best, minmax(arr, humanChar, beastChar, depth + 1, !isMax)); 
-                    arr[i][j] = ' '; 
-                } 
-            } 
-        } 
-        return best; 
-    } else { 
-    	//Choosing/Assuming Human always play the worst move.
-        int best = INT_MAX; 
-        SFOR(i) { 
-            SFOR(j) {  
-                isBlank(i, j) { 
-                    arr[i][j] = humanChar;  
-                    best = min(best, minmax(arr, humanChar, beastChar, depth + 1, !isMax));  
-                    arr[i][j] = ' '; 
-                } 
-            } 
-        } 
-        return best; 
-    } 
-}
-
-int beastMove (char arr[3][3], const VB &filledSpots, const char &humanChar, const char &beastChar) {
-	int place = INT_MIN;
-	int moveWeights[9];
-	IFOR(i)
-		moveWeights[i] = INT_MAX;
-	IFOR(i) { 
-		 isEmpty(i, filledSpots){
-			placeFlag(arr, i, beastChar);
-			int moveVal = minmax(arr, humanChar, beastChar, 0, false);
-			moveWeights[i] = moveVal;
-			placeFlag (arr, i, ' ');
-			if (moveVal > place) {
-				place = moveVal;
+// Get all available legal moves (spaces that are not occupied)
+std::vector<std::pair<int, int>> get_legal_moves(char board[3][3])
+{
+	std::vector<std::pair<int, int>> legal_moves;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			if (board[i][j] != AI_MARKER && board[i][j] != PLAYER_MARKER)
+			{
+				legal_moves.push_back(std::make_pair(i, j));
 			}
 		}
 	}
-  	int index = movePicker(arr, place, moveWeights);
-	cout << "Beast Plays the move at:";
-	return index;
+
+	return legal_moves;
 }
 
-int main () {
-	char arr[3][3] = {};
-	DFOR(i, j) {
-    	arr[i][j] = ' ';
-    }
-	char humanChar, beastChar;
-	bool humanFlag = false;
-	cout << "Choose your Move X or O (X Plays First): ";
-	cin >> humanChar;
-	if ((humanChar == 'X') || (humanChar == 'x')) {
-		beastChar = 'O';
-		humanFlag = true;
-	} else {
-		if ((humanChar != 'O') && (humanChar != 'o')) {
-			cout << "You chose an unknown move, Now you play second !!." << endl;
-		}
-		humanChar = 'O';
-		beastChar = 'X';
-	}
-	cout << "Human : " << humanChar << endl;
-	cout << "Beast : " << beastChar << endl;
-	VB filledSpots(9, false);
-	int boardFillCount = 9;
-	bool moveTracker = true;
-	bool result = false;
-	int place;
+// Check if a position is occupied
+bool position_occupied(char board[3][3], std::pair<int, int> pos)
+{
+	std::vector<std::pair<int, int>> legal_moves = get_legal_moves(board);
 
-	while (boardFillCount--) {
-		if (moveTracker == humanFlag ) {
-			cout << "Please Give Your Input: ";
-			cin >> place;
-			while ( isValidMoves(place) || filledSpots[place] == true ) {
-				if (isValidMoves(place)) 
-					cout << "Given Place "<< place <<" is not Valid." << endl;
-				else 
-					cout << "Given Place "<< place <<" is Already taken." << endl;
-				cout << "Plase Choose Again from the valid moves: " << endl;
-				IFOR(i) {
-					isEmpty(i, filledSpots)
-						cout << i << " ";
+	for (int i = 0; i < legal_moves.size(); i++)
+	{
+		if (pos.first == legal_moves[i].first && pos.second == legal_moves[i].second)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+// Get all board positions occupied by the given marker
+std::vector<std::pair<int, int>> get_occupied_positions(char board[3][3], char marker)
+{
+	std::vector<std::pair<int, int>> occupied_positions;
+
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			if (marker == board[i][j])
+			{
+				occupied_positions.push_back(std::make_pair(i, j));
+			}
+		}
+	}
+
+	return occupied_positions;
+}
+
+// Check if the board is full
+bool board_is_full(char board[3][3])
+{
+	std::vector<std::pair<int, int>> legal_moves = get_legal_moves(board);
+
+	if (0 == legal_moves.size())
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+// Check if the game has been won
+bool game_is_won(std::vector<std::pair<int, int>> occupied_positions)
+{
+	bool game_won;
+
+	for (int i = 0; i < winning_states.size(); i++)
+	{
+		game_won = true;
+		std::vector<std::pair<int, int>> curr_win_state = winning_states[i];
+		for (int j = 0; j < 3; j++)
+		{
+			if (!(std::find(std::begin(occupied_positions), std::end(occupied_positions), curr_win_state[j]) != std::end(occupied_positions)))
+			{
+				game_won = false;
+				break;
+			}
+		}
+
+		if (game_won)
+		{
+			break;
+		}
+	}
+	return game_won;
+}
+
+char get_opponent_marker(char marker)
+{
+	char opponent_marker;
+	if (marker == PLAYER_MARKER)
+	{
+		opponent_marker = AI_MARKER;
+	}
+	else
+	{
+		opponent_marker = PLAYER_MARKER;
+	}
+
+	return opponent_marker;
+}
+
+// Check if someone has won or lost
+int get_board_state(char board[3][3], char marker)
+{
+
+	char opponent_marker = get_opponent_marker(marker);
+
+	std::vector<std::pair<int, int>> occupied_positions = get_occupied_positions(board, marker);
+
+	bool is_won = game_is_won(occupied_positions);
+
+	if (is_won)
+	{
+		return WIN;
+	}
+
+	occupied_positions = get_occupied_positions(board, opponent_marker);
+	bool is_lost = game_is_won(occupied_positions);
+
+	if (is_lost)
+	{
+		return LOSS;
+	}
+
+	bool is_full = board_is_full(board);
+	if (is_full)
+	{
+		return DRAW;
+	}
+
+	return DRAW;
+
+}
+
+// Apply the minimax game optimization algorithm
+std::pair<int, std::pair<int, int>> minimax_optimization(char board[3][3], char marker, int depth, int alpha, int beta)
+{
+	// Initialize best move
+	std::pair<int, int> best_move = std::make_pair(-1, -1);
+	int best_score = (marker == AI_MARKER) ? LOSS : WIN;
+
+	// If we hit a terminal state (leaf node), return the best score and move
+	if (board_is_full(board) || DRAW != get_board_state(board, AI_MARKER))
+	{
+		best_score = get_board_state(board, AI_MARKER);
+		return std::make_pair(best_score, best_move);
+	}
+
+	std::vector<std::pair<int, int>> legal_moves = get_legal_moves(board);
+
+	for (int i = 0; i < legal_moves.size(); i++)
+	{
+		std::pair<int, int> curr_move = legal_moves[i];
+		board[curr_move.first][curr_move.second] = marker;
+
+		// Maximizing player's turn
+		if (marker == AI_MARKER)
+		{
+			int score = minimax_optimization(board, PLAYER_MARKER, depth + 1, alpha, beta).first;
+
+			// Get the best scoring move
+			if (best_score < score)
+			{
+				best_score = score - depth * 10;
+				best_move = curr_move;
+
+				// Check if this branch's best move is worse than the best
+				// option of a previously search branch. If it is, skip it
+				alpha = std::max(alpha, best_score);
+				board[curr_move.first][curr_move.second] = EMPTY_SPACE;
+				if (beta <= alpha) 
+				{ 
+					break; 
 				}
-				cout << endl;
-				cin >> place;
 			}
-			placeFlag(arr,place,humanChar);
-		} else {
-			place = beastMove(arr, filledSpots, humanChar, beastChar);
-			cout << place << endl;
-			placeFlag(arr,place,beastChar);
+
+		} // Minimizing opponent's turn
+		else
+		{
+			int score = minimax_optimization(board, AI_MARKER, depth + 1, alpha, beta).first;
+
+			if (best_score > score)
+			{
+				best_score = score + depth * 10;
+				best_move = curr_move;
+
+				// Check if this branch's best move is worse than the best
+				// option of a previously search branch. If it is, skip it
+				beta = std::min(beta, best_score);
+				board[curr_move.first][curr_move.second] = EMPTY_SPACE;
+				if (beta <= alpha) 
+				{ 
+					break; 
+				}
+			}
+
 		}
-		filledSpots[place] = true;
-		printBoard(arr);
-		if (evaluate(arr, humanChar, beastChar) == 10) {
-			result = true;
-			cout << "Beast WINS" << endl;
-			exit (0);
-		} else if (evaluate(arr, humanChar, beastChar) == -10)  {
-			result = false;
-			cout << "Player WINS" << endl;
-			exit (0);
-		} 
-		/*else {
-			int moveVal = minmax(arr, humanChar, beastChar, 0, !moveTracker);
-			if (moveVal == 0 && boardFillCount <= 3) {
-				result = true;
-				cout << "Match Drawn" << endl; 
-				exit(0);
-			}
-		}*/
-		moveTracker = !moveTracker;
+
+		board[curr_move.first][curr_move.second] = EMPTY_SPACE; // Undo move
+
 	}
-	if (!result) 
-		cout << "Match Drawn" << endl; 
+
+	return std::make_pair(best_score, best_move);
+}
+
+// Check if the game is finished
+bool game_is_done(char board[3][3])
+{
+	if (board_is_full(board))
+	{
+		return true;
+	}
+
+	if (DRAW != get_board_state(board, AI_MARKER))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+
+int main()
+{
+	char board[3][3] = { EMPTY_SPACE };
+
+	cout << "********************************\n\n\tTic Tac Toe AI\n\n********************************" << endl << endl;
+	cout << "Player = X\t AI Computer = O" << endl << endl;
+
+	print_board(board);
+
+	while (!game_is_done(board))
+	{
+		int row, col;
+		cout << "Row play: ";
+		cin >> row;
+		cout << "Col play: ";
+		cin >> col;
+		cout << endl << endl;
+
+		if (position_occupied(board, std::make_pair(row, col)))
+		{
+			cout << "The position (" << row << ", " << col << ") is occupied. Try another one..." << endl;
+			continue;
+		}
+		else
+		{
+			board[row][col] = PLAYER_MARKER;
+		}
+
+		std::pair<int, std::pair<int, int>> ai_move = minimax_optimization(board, AI_MARKER, START_DEPTH, LOSS, WIN);
+
+		board[ai_move.second.first][ai_move.second.second] = AI_MARKER;
+
+		print_board(board);
+	}
+
+	cout << "********** GAME OVER **********" << endl << endl;
+
+	int player_state = get_board_state(board, PLAYER_MARKER);
+
+	cout << "PLAYER "; print_game_state(player_state);
+	cout << "Rate the game(1-5)";
+	int a;
+	cin>>a;
 	return 0;
+
 }
